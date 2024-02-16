@@ -4,9 +4,8 @@ import (
 	"bufio"
 	"flag"
 	"fmt"
+	"gophercises/link/link"
 	"os"
-
-	"golang.org/x/net/html"
 )
 
 type Link struct {
@@ -22,64 +21,14 @@ func main() {
 	check(err)
 	reader := bufio.NewReader(file)
 
-	doc, err := html.Parse(reader)
+	links, err := link.Parse(reader)
 	check(err)
 
-	links := findLinksInDocument(doc)
-	fmt.Println("Links: ", links)
+	fmt.Println(links)
 }
 
 func check(e error) {
 	if e != nil {
 		panic(e)
 	}
-}
-
-func findLinksInDocument(doc *html.Node) []Link {
-
-	links := make([]Link, 0)
-
-	var f func(node *html.Node)
-	f = func(node *html.Node) {
-		if node.Type == html.ElementNode && node.Data == "a" {
-			var href string
-			for _, attr := range node.Attr {
-				fmt.Println(attr.Key)
-				if attr.Key == "href" {
-					href = attr.Val
-					break
-				}
-			}
-
-			// TODO get the text using a DFS on the children of this node
-			text := extractText(node)
-
-			links = append(links, Link{
-				Href: href,
-				Text: text,
-			})
-		}
-
-		for c := node.FirstChild; c != nil; c = c.NextSibling {
-			f(c)
-		}
-	}
-
-	f(doc)
-
-	return links
-}
-
-func extractText(node *html.Node) string {
-	var text string
-
-	if node.Type == html.TextNode {
-		text += node.Data
-	}
-
-	for c := node.FirstChild; c != nil; c = c.NextSibling {
-		text += extractText(c)
-	}
-
-	return text
 }
