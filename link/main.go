@@ -54,12 +54,10 @@ func findLinksInDocument(doc *html.Node) []Link {
 			// TODO get the text using a DFS on the children of this node
 			text := "dummy text"
 
-			if href != "" {
-				links = append(links, Link{
-					Href: href,
-					Text: text,
-				})
-			}
+			links = append(links, Link{
+				Href: href,
+				Text: text,
+			})
 		}
 
 		for c := node.FirstChild; c != nil; c = c.NextSibling {
