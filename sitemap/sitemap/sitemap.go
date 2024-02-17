@@ -7,137 +7,134 @@ import (
 	"io"
 	"log"
 	"net/http"
+	"net/url"
 	"strings"
 )
 
-func Generate(initial string) (string, error) {
-	var urlStack []string
-	urlStack = append(urlStack, initial)
+const xmlns = "http://www.sitemaps.org/schemas/sitemap/0.9"
 
-	after, _ := strings.CutPrefix(initial, "https://")
-	domain := strings.Split(after, "/")[0]
-
-	sitemap := make(map[string]uint8)
-
-	for len(urlStack) > 0 {
-		target := pop(&urlStack)
-
-		log.Println("Requesting:", target)
-		body, err := get(target)
-		if err != nil {
-			return "", err
-		}
-
-		links, err := links(body)
-		if err != nil {
-			return "", err
-		}
-
-		urlStack = append(urlStack, urls(domain, &sitemap, links)...)
-	}
-
-	sitemapXML, err := genSitemapXML(sitemap)
-	if err != nil {
-		return "", err
-	}
-
-	return sitemapXML, nil
+type loc struct {
+	Value string `xml:"loc"`
 }
 
-func validate(domain string, url string) bool {
-
-	// this should catch `mail:` and `file://` urls
-	if strings.Contains(strings.Split(url, ".")[0], ":") && !strings.Contains(url, "http") {
-		return false
-	}
-
-	return strings.Contains(url, domain)
+type urlset struct {
+	Urls  []loc  `xml:"url"`
+	Xmlns string `xml:"xmlns,attr"`
 }
 
-func get(url string) (io.Reader, error) {
-	resp, err := http.Get(url)
-	if err != nil {
-		return nil, err
+func Generate(url string, maxDepth int) (string, error) {
+
+	pages := bfs(url, maxDepth)
+	toXml := urlset{
+		Xmlns: xmlns,
 	}
 
-	return resp.Body, nil
-}
-
-func links(r io.Reader) ([]link.Link, error) {
-	links, err := link.Parse(r)
-	if err != nil {
-		return nil, err
+	for _, page := range pages {
+		toXml.Urls = append(toXml.Urls, loc{page})
 	}
 
-	return links, nil
-}
-
-func urls(domain string, sitemap *map[string]uint8, links []link.Link) []string {
-	urlStack := make([]string, 0)
-
-	for _, link := range links {
-
-		cleaned := clean(domain, link.Href)
-		if _, ok := (*sitemap)[cleaned]; ok {
-			continue
-		}
-
-		if ok := validate(domain, cleaned); !ok {
-			continue
-		}
-
-		// the list doesn't exist on the map but is valid
-		(*sitemap)[cleaned] = 0
-		urlStack = append(urlStack, cleaned)
-	}
-
-	return urlStack
-}
-
-type Url struct {
-	XMLName xml.Name `xml:"url"`
-	Loc     string   `xml:"loc"`
-}
-
-type UrlSet struct {
-	XMLName xml.Name `xml:"urlset"`
-	Xmlns   string   `xml:"xmlns,attr"`
-	Urls    []Url
-}
-
-func genSitemapXML(urls map[string]uint8) (string, error) {
-	set := &UrlSet{
-		Xmlns: "http://www.sitemaps.org/schemas/sitemap/0.9",
-		Urls:  make([]Url, 0),
-	}
-
-	// urls is a map so we're getting the key
-	for url := range urls {
-		set.Urls = append(set.Urls, Url{Loc: url})
-	}
-
-	buf := bytes.NewBufferString("")
+	buf := bytes.NewBufferString(xml.Header)
 	enc := xml.NewEncoder(buf)
 	enc.Indent("", "\t")
-	if err := enc.Encode(set); err != nil {
+	if err := enc.Encode(toXml); err != nil {
 		return "", err
 	}
 
-	xmlString := strings.Join([]string{xml.Header, buf.String()}, "")
-
-	return xmlString, nil
+	return buf.String(), nil
 }
 
-func pop[T any](slice *[]T) T {
-	x := (*slice)[0]
-	*slice = (*slice)[1:]
-	return x
+func bfs(urlStr string, maxDepth int) []string {
+	seen := make(map[string]struct{})
+	// queries
+	var q map[string]struct{}
+	// next queries, init'd to the original url
+	nq := map[string]struct{}{
+		urlStr: {},
+	}
+
+	for i := 0; i <= maxDepth; i++ {
+		// set queries to the next queries, set next queries to a new map
+		q, nq = nq, make(map[string]struct{})
+		if len(q) == 0 {
+			break
+		}
+
+		for url := range q {
+			// skip if we've already seen the url
+			if _, ok := seen[url]; ok {
+				continue
+			}
+
+			seen[url] = struct{}{}
+			// add the links from the next page to the next queries map
+			for _, link := range get(url) {
+				nq[link] = struct{}{}
+			}
+		}
+	}
+
+	ret := make([]string, 0, len(seen))
+	for url := range seen {
+		ret = append(ret, url)
+	}
+
+	return ret
 }
 
-func clean(domain string, link string) string {
-	if strings.Contains(link, ":") {
-		return link
-	} else {
-		return strings.Join([]string{"https://", domain, link}, "")
+func get(urlStr string) []string {
+	log.Println("Requesting:", urlStr)
+	// HTTP request
+	resp, err := http.Get(urlStr)
+	if err != nil {
+		return []string{}
+	}
+	defer resp.Body.Close()
+
+	// get the base domain
+	reqUrl := resp.Request.URL
+	baseUrl := &url.URL{
+		Scheme: reqUrl.Scheme,
+		Host:   reqUrl.Host,
+	}
+	base := baseUrl.String()
+
+	// use the `links` package to get the links, then filters to the ones with the base domain
+	return filter(hrefs(resp.Body, base), withPrefix(base))
+}
+
+func hrefs(r io.Reader, base string) []string {
+	// get links
+	links, _ := link.Parse(r)
+	var ret []string
+
+	for _, l := range links {
+		switch {
+		case strings.HasPrefix(l.Href, "/"):
+			// local link, need to append base url
+			ret = append(ret, base+l.Href)
+		case strings.HasPrefix(l.Href, "http"):
+			// already has base url
+			ret = append(ret, l.Href)
+		}
+	}
+
+	return ret
+}
+
+func filter(links []string, keepFn func(string) bool) []string {
+	var ret []string
+
+	for _, link := range links {
+		if keepFn(link) {
+			ret = append(ret, link)
+		}
+	}
+
+	return ret
+}
+
+func withPrefix(pfx string) func(string) bool {
+	return func(link string) bool {
+		return strings.HasPrefix(link, pfx)
 	}
 }

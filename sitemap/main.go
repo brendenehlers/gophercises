@@ -4,21 +4,14 @@ import (
 	"flag"
 	"fmt"
 	"gophercises/sitemap/sitemap"
-	"strings"
 )
 
 func main() {
 	siteFlag := flag.String("site", "https://google.com", "Site to generate a sitemap for")
+	depthFlag := flag.Int("depth", 10, "The maximum depth to search to")
 	flag.Parse()
 
-	var url string
-	if strings.HasPrefix(*siteFlag, "https://") {
-		url = *siteFlag
-	} else {
-		url = strings.Join([]string{"https://", *siteFlag}, "")
-	}
-
-	xml, err := sitemap.Generate(url)
+	xml, err := sitemap.Generate(*siteFlag, *depthFlag)
 	if err != nil {
 		panic(err)
 	}
