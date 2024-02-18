@@ -2,6 +2,7 @@ package hn
 
 import (
 	"log"
+	"slices"
 	"sync"
 )
 
@@ -43,6 +44,10 @@ func TopItems(count int) ([]Item, error) {
 			}
 		}
 	}
+
+	slices.SortFunc(items, func(a Item, b Item) int {
+		return a.ID - b.ID
+	})
 
 	return items, nil
 }

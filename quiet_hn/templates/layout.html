@@ -1,0 +1,21 @@
+{{define "layout"}}
+<!DOCTYPE html>
+<html>
+	<head>
+		<meta charset="utf-8" />
+		<title>Quiet Hacker News</title>
+		<link rel="stylesheet" href="/static/stylesheet.css" />
+	</head>
+	<body>
+		<header>Quiet Hacker News</header>
+		<main>
+			<ul>
+				{{range .}}
+				<li><a href="{{ .Url }}">{{ .Title }}</a></li>
+				{{end}}
+			</ul>
+		</main>
+		<footer>Made with Go</footer>
+	</body>
+</html>
+{{end}}

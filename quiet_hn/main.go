@@ -1,17 +1,40 @@
 package main
 
 import (
-	"fmt"
 	"gophercises/quiet_hn/hn"
+	"html/template"
+	"log"
+	"net/http"
+	"path/filepath"
 )
 
 func main() {
-	var c hn.Client
+	fs := http.FileServer(http.Dir("./static"))
+	http.Handle("/static/", http.StripPrefix("/static", fs))
 
-	item, err := c.GetItem(39420256)
+	http.HandleFunc("/", serveTemplate)
+
+	log.Println("Listening on :3000")
+	if err := http.ListenAndServe(":3000", nil); err != nil {
+		log.Fatal(err)
+	}
+}
+
+func check(err error) {
 	if err != nil {
 		panic(err)
 	}
+}
 
-	fmt.Println(item)
+func serveTemplate(w http.ResponseWriter, r *http.Request) {
+	lp := filepath.Join("templates", "layout.html")
+
+	items, err := hn.TopItems(30)
+	check(err)
+
+	tmpl, err := template.ParseFiles(lp)
+	check(err)
+
+	err = tmpl.ExecuteTemplate(w, "layout", items)
+	check(err)
 }

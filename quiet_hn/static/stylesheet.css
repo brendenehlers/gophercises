@@ -1,0 +1,22 @@
+body {
+	margin: 0;
+	padding: 0;
+}
+
+header,
+footer {
+	width: 100vw;
+	background-color: orange;
+	text-align: center;
+	padding: 3rem 0;
+	font-size: 2rem;
+}
+
+main ul {
+	list-style: none;
+	padding: 0 1rem;
+}
+
+main ul li {
+	padding: 0.25rem 0;
+}
