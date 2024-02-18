@@ -1,4 +1,4 @@
-package client
+package hn
 
 import (
 	"encoding/json"
