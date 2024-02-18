@@ -3,6 +3,7 @@ package hn
 import (
 	"encoding/json"
 	"fmt"
+	"log"
 	"net/http"
 )
 
@@ -24,22 +25,23 @@ type Item struct {
 	Url  string `json:"url"`
 }
 
-type Client struct {
+type client struct {
 	apiBase string
 }
 
-func (c *Client) defaultify() {
+func (c *client) defaultify() {
 	if c.apiBase == "" {
 		c.apiBase = apiBase
 	}
 }
 
-func (c *Client) get(context string) (*http.Response, error) {
+func (c *client) get(context string) (*http.Response, error) {
+	log.Printf("Requesting: %s\n", context)
 	resp, err := http.Get(c.apiBase + context)
 	return resp, err
 }
 
-func (c *Client) TopItems() ([]int, error) {
+func (c *client) TopItems() ([]int, error) {
 	c.defaultify()
 	resp, err := c.get("/topstories.json")
 	if err != nil {
@@ -57,7 +59,7 @@ func (c *Client) TopItems() ([]int, error) {
 	return ids, nil
 }
 
-func (c *Client) GetItem(id int) (Item, error) {
+func (c *client) GetItem(id int) (Item, error) {
 	c.defaultify()
 
 	resp, err := c.get(fmt.Sprintf("/item/%d.json", id))
