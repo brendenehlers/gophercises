@@ -1,8 +1,10 @@
 package main
 
 import (
+	"bufio"
 	"fmt"
 	"log"
+	"net"
 	"net/http"
 	"runtime/debug"
 )
@@ -36,6 +38,23 @@ func (rw *responseWriter) flush() error {
 	return nil
 }
 
+func (rw *responseWriter) Hijack() (net.Conn, *bufio.ReadWriter, error) {
+	hj, ok := rw.ResponseWriter.(http.Hijacker)
+	if !ok {
+		return nil, nil, fmt.Errorf("hijacker not supported")
+	}
+
+	return hj.Hijack()
+}
+
+func (rw *responseWriter) Flush() {
+	f, ok := rw.ResponseWriter.(http.Flusher)
+	if !ok {
+		return
+	}
+	f.Flush()
+}
+
 func main() {
 	mux := http.NewServeMux()
 	mux.HandleFunc("/panic/", panicDemo)
@@ -61,7 +80,6 @@ func recoverMW(app http.Handler, dev bool) http.HandlerFunc {
 				http.Error(w, "Something went wrong", http.StatusInternalServerError)
 			}
 		}()
-
 		nw := &responseWriter{ResponseWriter: w}
 		app.ServeHTTP(nw, r)
 		nw.flush()
