@@ -1,6 +1,7 @@
 package main
 
 import (
+	"gophercises/quiet_hn/cache"
 	"gophercises/quiet_hn/hn"
 	"html/template"
 	"log"
@@ -12,7 +13,15 @@ func main() {
 	fs := http.FileServer(http.Dir("./static"))
 	http.Handle("/static/", http.StripPrefix("/static", fs))
 
-	http.HandleFunc("/", serveTemplate)
+	cache := cache.New[int, hn.Item](cache.Options{})
+
+	hn := &hn.HN{
+		Cache: cache,
+	}
+
+	http.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
+		serveTemplate(w, hn)
+	})
 
 	log.Println("Listening on :3000")
 	if err := http.ListenAndServe(":3000", nil); err != nil {
@@ -26,7 +35,7 @@ func check(err error) {
 	}
 }
 
-func serveTemplate(w http.ResponseWriter, r *http.Request) {
+func serveTemplate(w http.ResponseWriter, hn *hn.HN) {
 	lp := filepath.Join("templates", "layout.html")
 	tmpl := template.Must(template.ParseFiles(lp))
 

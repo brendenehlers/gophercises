@@ -7,12 +7,16 @@ import (
 )
 
 type Cache interface {
-	Read(key string) any
-	Set(key string, val any)
-	Delete(key string)
+	Read(key int) (Item, bool)
+	Insert(key int, val Item) error
+	Remove(key int) error
 }
 
-func TopItems(count int) ([]Item, error) {
+type HN struct {
+	Cache Cache
+}
+
+func (hn *HN) TopItems(count int) ([]Item, error) {
 	c := client{}
 	items := make([]Item, 0)
 	ids, err := c.TopItems()
@@ -30,8 +34,12 @@ func TopItems(count int) ([]Item, error) {
 		var wg sync.WaitGroup
 
 		for _, id := range batch {
-			wg.Add(1)
-			go worker(&wg, itemsChan, id)
+			if val, ok := hn.Cache.Read(id); ok {
+				itemsChan <- val
+			} else {
+				wg.Add(1)
+				go hn.worker(&wg, itemsChan, id)
+			}
 		}
 
 		wg.Wait()
@@ -52,13 +60,17 @@ func TopItems(count int) ([]Item, error) {
 	return items, nil
 }
 
-func worker(wg *sync.WaitGroup, channel chan<- Item, id int) {
+func (hn *HN) worker(wg *sync.WaitGroup, channel chan<- Item, id int) {
 	defer wg.Done()
 
 	c := client{}
 	item, err := c.GetItem(id)
 	if err != nil {
 		panic(err)
+	}
+
+	if hn.Cache != nil {
+		hn.Cache.Insert(id, item)
 	}
 
 	if validate(item) {
