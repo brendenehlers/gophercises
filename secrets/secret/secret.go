@@ -8,19 +8,19 @@ import (
 	"strings"
 )
 
-func NewVault(key, filepath string) Vault {
-	return Vault{
-		key:      []byte(key),
-		filepath: filepath,
-	}
-}
-
 type Vault struct {
 	key      []byte
 	filepath string
 }
 
 type VaultSecrets map[string]string
+
+func NewVault(key, filepath string) Vault {
+	return Vault{
+		key:      []byte(key),
+		filepath: filepath,
+	}
+}
 
 func (v Vault) Get(key string) (string, bool, error) {
 	secrets, err := v.readSecrets()
@@ -86,7 +86,6 @@ func decodeSecrets(r io.Reader) (VaultSecrets, error) {
 	records := strings.Split(string(plaintext), "\n")
 	for _, record := range records {
 		kv := strings.Split(record, "=")
-		fmt.Println(kv)
 		secrets[kv[0]] = kv[1]
 	}
 
