@@ -3,23 +3,43 @@ package main
 import (
 	"fmt"
 	"gophercises/secrets/encrypt"
+	"gophercises/secrets/secret"
+	"io"
+	"os"
 )
 
 const (
-	secret = `6368616e676520746869732070617373`
-	// ciphertext = `cf0495cc6f75dafc23948538e79904a9`
-	plaintext = `My super secret text`
+	key = `6368616e676520746869732070617373`
 )
 
 func main() {
-
-	ciphertext, err := encrypt.Encrypt([]byte(secret), []byte(plaintext))
+	v := secret.NewVault(key, "./secretsFile")
+	err := v.Set("username", "myUsername")
+	check(err)
+	err = v.Set("password", "password")
 	check(err)
 
-	text, err := encrypt.Decrypt([]byte(secret), ciphertext)
+	val, ok, err := v.Get("username")
 	check(err)
 
-	fmt.Printf("%s\n", text)
+	if ok {
+		fmt.Println(val)
+	} else {
+		fmt.Println("value not found")
+	}
+
+	file, err := os.Open("./secretsFile")
+	check(err)
+
+	r, err := encrypt.DecryptReader([]byte(key), file)
+	check(err)
+
+	plaintext, err := io.ReadAll(r)
+	check(err)
+
+	fmt.Println("-----")
+	fmt.Println(string(plaintext))
+	fmt.Println("-----")
 }
 
 func check(err error) {

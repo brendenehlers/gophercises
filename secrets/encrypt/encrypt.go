@@ -52,3 +52,31 @@ func newCipherBlock(key []byte) (cipher.Block, error) {
 	cipherKey := hasher.Sum(nil)
 	return aes.NewCipher(cipherKey)
 }
+
+func EncryptWriter(key []byte, w io.Writer) (io.Writer, error) {
+	block, err := newCipherBlock(key)
+	if err != nil {
+		return nil, err
+	}
+
+	var iv [aes.BlockSize]byte
+	stream := cipher.NewCFBEncrypter(block, iv[:])
+
+	writer := &cipher.StreamWriter{S: stream, W: w}
+
+	return writer, nil
+}
+
+func DecryptReader(key []byte, r io.Reader) (io.Reader, error) {
+	block, err := newCipherBlock(key)
+	if err != nil {
+		return nil, err
+	}
+
+	var iv [aes.BlockSize]byte
+	stream := cipher.NewCFBDecrypter(block, iv[:])
+
+	reader := &cipher.StreamReader{S: stream, R: r}
+
+	return reader, nil
+}
