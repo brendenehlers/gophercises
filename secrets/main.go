@@ -17,9 +17,10 @@ func main() {
 	filepath := homeDir + "/.secret"
 
 	keyFlag := &cli.StringFlag{
-		Name:  "k",
-		Value: "",
-		Usage: "Key for encrypting/decrypting the secrets",
+		Name:    "key",
+		Aliases: []string{"k"},
+		Value:   "",
+		Usage:   "Key for encrypting/decrypting the secrets",
 	}
 
 	app := &cli.App{
