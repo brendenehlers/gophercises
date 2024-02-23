@@ -87,9 +87,6 @@ func decodeSecrets(r io.Reader) (VaultSecrets, error) {
 	for _, record := range records {
 		kv := strings.Split(record, "=")
 		fmt.Println(kv)
-		// if len(kv) != 2 {
-		// 	return nil, fmt.Errorf("invalid format when decoding secrets")
-		// }
 		secrets[kv[0]] = kv[1]
 	}
 
